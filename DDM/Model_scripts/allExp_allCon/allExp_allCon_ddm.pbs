@@ -1,0 +1,19 @@
+#!/bin/bash
+    
+#PBS -m abe
+#PBS -M mengqiao.chai@ugent.be
+#PBS -l nodes=1:ppn=18
+#PBS -l mem=15gb
+#PBS -N ddm_allExp_allCon
+#PBS -V
+#PBS -l walltime=45:00:00 
+
+module purge
+module load HDDM/0.7.5-intel-2019b-Python-3.7.4 
+
+cd $PBS_O_WORKDIR
+python ./allExp_allCon_ddm_hpc.py $experiment $interaction
+
+### This script is submitted to the cluster with the following two commands:
+# module load worker/1.6.8-intel-2018a ### this time we cannot include this command in the script itself because otherwise the next command will not work
+# wsub -data model_parameters.csv -batch allExp_allCon_ddm.pbs

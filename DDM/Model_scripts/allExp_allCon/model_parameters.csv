@@ -1,0 +1,16 @@
+experiment,interaction
+v1,CTI
+v1,ruleCon
+v1,stimCon
+v2,CTI
+v2,ruleCon
+v2,stimCon
+control,CTI
+control,ruleCon
+control,stimCon
+rule_tran,CTI
+rule_tran,ruleCon
+rule_tran,stimCon
+stim_tran,CTI
+stim_tran,ruleCon
+stim_tran,stimCon

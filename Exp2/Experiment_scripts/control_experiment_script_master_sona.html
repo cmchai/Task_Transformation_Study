@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title> the belief state experiment -- version_2 -- recruit on SONA</title>
+	<script src="jspsych/jspsych.js"></script>
+	<script src="jspsych/plugins/jspsych-html-keyboard-response.js"></script>
+	<script src="jspsych/plugins/jspsych-html-button-response.js"></script>	
+	<script src="jspsych/plugins/jspsych-survey-text.js"></script>
+	<script src="jspsych/plugins/jspsych-survey-multi-choice.js"></script>		
+	<script src="jspsych/plugins/jspsych-image-button-response.js"></script>
+	<script src="jspsych/plugins/jspsych-instructions.js"></script>
+    <script src="jspsych/plugins/jspsych-call-function.js"></script>
+    <script src="jspsych/plugins/jspsych-survey-likert.js"></script>
+    <script src="jspsych/plugins/jspsych-fullscreen.js"></script>      
+    <script src="jspsych/plugins/jspsych-preload.js"></script>
+	<script src="imageList.js"></script>
+	<script src="instructions.js"></script>
+	<script src="bowser.js"></script>
+	<link href="jspsych/css/jspsych.css" rel="stylesheet">
+	<style>
+		.imgStim {
+			height: 200px;
+			width: 300px;
+		}
+		.imgFam {
+			height: 400px;
+			width: 600px;
+		}
+		.imgInst {
+			height:320px
+			width:520px
+		}
+	    .lotteryTable{
+			margin-left: auto;
+            margin-right: auto;
+            border: 1px solid black;
+            border-collapse: collapse;
+		}
+		.lotteryTableEntry{
+			border: 1px solid black;
+		}
+
+		.InstrBx {
+			max-width: 70vw; 
+			max-height: 100%;
+		}
+		#leftPrompt{position:absolute; bottom:18vw; left:18vw; font-size: 30px;}
+		#rightPrompt{position:absolute; bottom:18vw; right:18vw; font-size: 30px;}
+		#taskCue{height:120px; width:150px; text-align:center; display: table-cell; vertical-align: middle; border: 3px solid #000000;}
+		#instructionFrame{width:800px; text-align: left; line-break: normal;}
+		#CTI{animation-name:example; animation-duration: 20s;}
+		@keyframes example {
+			from {font-size:20px}
+			to {font-size:90px}
+		}
+		ul.a {
+		  list-style-type: disc;
+		}		
+	</style>
+</head>
+<body></body>
+<script type="text/javascript">
+
+
+	// Math.seedrandom('whateverstringyouwant');
+
+
+	///////////////// the main modification of this version /////////////////////
+
+	// 1. getting rid of all the reward manipulation(including trial-level feedback and the lottery at the end)
+	// 2. change the structure of the experiment, so no block type alternation anymore 
+
+
+
+	/////////////////////////////////////////////////////////////////////////////
+	//////////////////// Defining important global variables ////////////////////
+	/////////////////////////////////////////////////////////////////////////////
+
+	// const basePayment = 8 // in British pound payment if using Prolific
+	// const regularPayment = 0.10 // payment for each regular trial
+	// const transformPayment = 0.90 // payment for each transform trial
+
+	const taskDims = ["stim", "rule"];
+	const stimFullList = ["animal", "place", "vehicle"];
+	const ruleFullList = ["age", "size", "location"];
+    const leftKey = "f";
+	const rightKey = "j";
+	const avg_accPC_regreg = 85; // average accuracy percentage of the regular trials in the regular blocks FROM THE PREVIOUS PILOT DATA
+	const avg_accPC_trareg = 85; // average accuracy percentage of the regular trials in the transfrom blocks FROM THE PREVIOUS PILOT DATA
+	const avg_accPC_tratra = 88; // average accuracy percentage of the transform trials in the transfrom blocks FROM THE PREVIOUS PILOT DATA
+	const thre_accPC = 80; // the threshold of accuracy rate of the block
+	
+	var nTrialsBlock = 54;
+	var nBlocks = 6;
+
+	var intervalTaskCue = 1000; // 1000 ms
+	var intervalTaskOmit = 1000;
+	var intervalStim = 2000;
+	var ddlResponse = 2000;
+	var CTIs = [1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 
+	            1450, 1500, 1550, 1600, 1650, 1700, 1750, 1800, 1850, 
+	            1900, 1950, 2000, 2076, 2152, 2228, 2304, 2380, 2456, 
+	            2532, 2608, 2684, 2760, 2836, 2912, 2988, 3113, 3238, 
+	            3363, 3488, 3613, 3738, 3863, 3988, 4154, 4320, 4486, 
+	            4652, 4818, 4984, 5234, 5484, 5734, 5984, 6484, 6984]; // 54 CTIs, mean: 2891.4
+	var CTIs_long = CTIs.slice(-9); // the longest 9 CTIs
+	var numOT = 5;
+	var ITIs = [1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,
+	            1400,1400,1400,1400,1400,1400,1400,1400,1400,1400,1400,
+	            1800,1800,1800,1800,1800,1800,1800,
+	            2200,2200,2200,2200,2200,2200,
+	            2600,2600,2600,2600,2600,2600,
+	            3000,3000,3000,3000,3000,
+	            3400,3400,3400,
+	            3800,3800,
+	            4200,
+	            4600]; // 54 intervals
+	var fixationColors = ["#B200ED", "#3BB143"]; // violet and green
+	var shuffleFixColors = jsPsych.randomization.shuffle(fixationColors); // first is for regular block, second is for transformed block      
+
+	var blockTypes = [["RG","RG","RG"],["OT","OT","OT"]];
+	var blockSeq = jsPsych.randomization.shuffle(blockTypes); // RG: regular block; TF:transform block. either start with RG or TF
+	var fullBlockSeq = blockSeq.flat();
+	var fullBlockID = genFullBlockID(fullBlockSeq);
+	var allTasks = taskList;
+	
+	console.log(fullBlockSeq, fullBlockID)
+
+
+	///// defining all the stimulus pool for each semantic rule /////
+
+	const animalImgList = stimulusList.filter(function(item){
+		return item.stim_type == "animal"
+	});
+
+	const placeImgList = stimulusList.filter(function(item){
+		return item.stim_type == "place"
+	});
+
+	const vehicleImgList = stimulusList.filter(function(item){
+		return item.stim_type == "vehicle"
+	});
+	// console.log(animalImgList, placeImgList, vehicleImgList)
+
+	
+	///// defining the subject-level parameters /////
+
+	var responseMappings = jsPsych.randomization.sampleWithReplacement([0,1],3);
+	console.log("the response mappings(age, size, location respectively) are", responseMappings)
+
+	var leftPrompt_0 = ["young", "small", "water"];
+	var rightPrompt_0 = ["old", "big", "land"];
+
+	var leftPrompt = []; 
+	var rightPrompt = [];
+
+	for (var i = 0; i < responseMappings.length; i++) {
+		if (responseMappings[i] == 0) {
+			leftPrompt[i] = leftPrompt_0[i];
+			rightPrompt[i] = rightPrompt_0[i];
+		} else {
+			leftPrompt[i] = rightPrompt_0[i];
+			rightPrompt[i] = leftPrompt_0[i];
+		}
+	}
+	console.log("leftPrompt: ", leftPrompt, "; rightPrompt: ", rightPrompt)
+
+	// the sequence follows age, size, location
+	// 0: young/old, small/big. water/land
+	// 1: old/young, big/small, land/water
+
+
+    ////////////////////////////////////////////////////////////////////
+    ////////////////////////// FUNCTIONS  //////////////////////////////
+    ////////////////////////////////////////////////////////////////////
+
+    function genPrompt(rule) {
+    	// generate response for each trial //
+		var promptObject = {};
+		switch(rule) {
+			case "age":
+			    promptObject.leftPrompt = leftPrompt[0];
+			    promptObject.rightPrompt = rightPrompt[0];
+				return promptObject;
+				break;
+			case "size":
+			    promptObject.leftPrompt = leftPrompt[1];
+			    promptObject.rightPrompt = rightPrompt[1];			
+				return promptObject;
+				break;
+			case "location":
+			    promptObject.leftPrompt = leftPrompt[2];
+			    promptObject.rightPrompt = rightPrompt[2];			
+				return promptObject;
+				break;			
+		}		
+	}
+
+
+    function genFullBlockID(fullBlockSeq) {
+    	var seqArray = [1,2,3,1,2,3]; // 3 blocks of one type after 3 blocks of another type
+    	var fullBlockID = [];
+    	for (var i = 0; i < fullBlockSeq.length; i++) {
+    		var blockID = fullBlockSeq[i] + "_" + seqArray[i];
+    		fullBlockID.push(blockID);
+    	}
+    	return fullBlockID
+    }
+
+
+    function genStimArray(stimType, nTrials) {
+
+    	// generate a array of images without repeating the last 2 trials
+
+    	const relevantImgList = stimulusList.filter(function(item){
+			return item.stim_type == stimType;
+		});
+
+		var stimArray = jsPsych.randomization.sampleWithoutReplacement(relevantImgList, 2); // the first 2 trials
+
+		for (var i = 2; i < nTrials; i++) {
+
+			var lastImgID = stimArray[stimArray.length - 1].id;
+			var secondLastImgID = stimArray[stimArray.length - 2].id; 
+			var last2ImgID = [lastImgID, secondLastImgID];
+
+			var remainImgList = relevantImgList.filter(element => last2ImgID.includes(element.id) == false);
+			var currentImg = jsPsych.randomization.sampleWithoutReplacement(remainImgList, 1)[0];
+			stimArray.push(currentImg);
+		}
+
+		return stimArray
+    }
+
+    // console.log(genStimArray("animal", nTrialsBlock))
+
+
+    function trialtype(logicalCTI) {
+    	// determine if the trial is a regular trial or transform trial based on the CTI
+    	var trialType = "RG" // regular trial
+    	if (logicalCTI == true) {
+    		trialType = "OT"; // omit trial
+    	}
+    	return trialType;
+    }
+
+
+    function genAnswer(rule, imageID) {
+    	switch(rule) {
+    		case "age":
+	    		var answer = "young";
+	    		if (imageID.includes("_o")) {
+	    			answer = "old";
+	    		}
+	    		return answer;
+	    		break;
+    		case "size":
+	    		var answer = "small";
+	    		if (imageID.includes("_b")) {
+	    			answer = "big";
+	    		}
+	    		return answer;
+	    		break;	    		
+    		case "location":
+	    		var answer = "water";
+	    		if (imageID.includes("_l")) {
+	    			answer = "land";
+	    		}
+	    		return answer;
+	    		break;    		
+    	}
+    }
+
+
+    function genCorrectKey(answer, responseMappings) {
+    	switch(answer) {
+    		case "young":
+	    		var responseMapping = responseMappings[0];
+	    		var correctKey = leftKey;
+	    		if (responseMapping == 1) {
+	    			correctKey = rightKey;
+	    		}
+	    		return correctKey;
+	    		break;
+    		case "old":
+	    		var responseMapping = responseMappings[0];
+	    		var correctKey = rightKey;
+	    		if (responseMapping == 1) {
+	    			correctKey = leftKey;
+	    		}
+	    		return correctKey;
+	    		break;   		
+    		case "small":
+	    		var responseMapping = responseMappings[1];
+	    		var correctKey = leftKey;
+	    		if (responseMapping == 1) {
+	    			correctKey = rightKey;
+	    		}
+	    		return correctKey;
+	    		break;    		
+    		case "big":
+	    		var responseMapping = responseMappings[1];
+	    		var correctKey = rightKey;
+	    		if (responseMapping == 1) {
+	    			correctKey = leftKey;
+	    		}
+	    		return correctKey;
+	    		break;     		
+    		case "water":
+	    		var responseMapping = responseMappings[2];
+	    		var correctKey = leftKey;
+	    		if (responseMapping == 1) {
+	    			correctKey = rightKey;
+	    		}
+	    		return correctKey;
+	    		break;    		
+    		case "land":
+	    		var responseMapping = responseMappings[2];
+	    		var correctKey = rightKey;
+	    		if (responseMapping == 1) {
+	    			correctKey = leftKey;
+	    		}
+	    		return correctKey;
+	    		break; 
+    	}
+    }
+
+    function genRuleCue(rule, responseMappings) {
+    	switch(rule) {
+    		case "age":
+	    		var responseMapping = responseMappings[0];
+	    		var ruleCue = "young | old";
+	    		if (responseMapping == 1) {
+	    			ruleCue = "old | young";
+	    		}
+	    		break;
+    		case "size":
+ 	    		var responseMapping = responseMappings[1];
+	    		var ruleCue = "small | big";
+	    		if (responseMapping == 1) {
+	    			ruleCue = "big | small";
+	    		}
+	    		break;   		
+    		case "location":
+	    		var responseMapping = responseMappings[2];
+	    		var ruleCue = "water | land";
+	    		if (responseMapping == 1) {
+	    			ruleCue = "land | water";
+	    		}
+	    		break;    		
+    	}
+    	return ruleCue
+    }
+
+    function matchingCTI(num, numArray) {
+    	return numArray.includes(num)
+    }
+
+    function genTrialArray(blockType, nTrials, CTIsOT) {
+    	// var blockType = "RG";
+    	// var nTrials = nTrialsBlock;
+  	
+    	var taskArray = jsPsych.randomization.shuffle(jsPsych.randomization.sampleWithReplacement(allTasks, nTrials)); // random sample and shuffle again to further reduce task repitition
+    	var CTIArray = jsPsych.randomization.shuffle(CTIs);
+    	var trialsOT = CTIArray.map(function(x) {return matchingCTI(x, CTIsOT)}); // return an logical array: True for omit trials
+
+    	var animalImgArray = genStimArray("animal", nTrials);
+    	var placeImgArray = genStimArray("place", nTrials);
+    	var vehicleImgArray = genStimArray("vehicle", nTrials);
+
+    	var trialArray = [];
+    	for (var i = 0; i < nTrials; i++) {
+
+    		var trialObject = {};
+    		trialObject.stim = taskArray[i].stim;
+    		trialObject.rule = taskArray[i].rule;
+    		trialObject.rule_cue = genRuleCue(trialObject.rule, responseMappings);
+
+    		var imgTrialArray = [animalImgArray[i], placeImgArray[i], vehicleImgArray[i]];
+    		var shuffledImgTrialArray = jsPsych.randomization.shuffle(imgTrialArray);
+
+    		trialObject.image_up = shuffledImgTrialArray[0];
+    		trialObject.image_mid = shuffledImgTrialArray[1];
+    		trialObject.image_low = shuffledImgTrialArray[2];
+    		trialObject.image_target = imgTrialArray.filter(element => element.id.includes(trialObject.stim))[0];
+
+    		trialObject.CTI = CTIArray[i];
+    		
+    		if (blockType == "RG") {
+    			trialObject.trial_type = "RG";
+    		} else {
+    			trialObject.trial_type = trialtype(trialsOT[i]);
+    		};
+    		
+    		trialObject.answer = genAnswer(trialObject.rule, trialObject.image_target.id);
+    		trialObject.correct_key = genCorrectKey(trialObject.answer, responseMappings);
+
+    		trialArray.push(trialObject);
+    	}
+    	return trialArray
+    }
+
+    // console.log(genTrialArray("TF", nTrialsBlock))
+
+
+	function genInstruction(instructionID) {
+		var instruction = {
+			type: 'instructions',
+			pages: instructionID,
+			key_forward: 'spacebar',
+			post_trial_gap: 2000,
+			show_clickable_nav: true
+		}
+		return instruction		
+	}    
+
+	function genFixationCTI(duration, color){
+		var fixationObject = {
+            type: 'html-keyboard-response',
+            stimulus: '<table><tr><td style="height:200px;width:300px"><div id = CTI style="color:' + color + '">+</div></td></tr>'
+				  	       + '<tr><td style="height:200px;width:300px"><div id = CTI style="color:' + color + '">+</div></td></tr>'
+				  	       + '<tr><td style="height:200px;width:300px"><div id = CTI style="color:' + color + '">+</div></td></tr></table>',
+            choices: jsPsych.NO_KEYS,
+            trial_duration: duration,
+            data: {
+                trial_part: 'fixation', 
+            }
+        };
+        return fixationObject
+	}
+
+	function genFixationITI(duration){
+		var fixationObject = {
+            type: 'html-keyboard-response',
+            stimulus: '<span style="font-size:20px;">+</span>',
+            choices: jsPsych.NO_KEYS,
+            trial_duration: duration,
+            data: {
+                trial_part: 'fixation', 
+            }
+        };
+        return fixationObject
+	}
+    
+    function genBlock(blockType, blockID, trialArray) {
+    	// generate the block for the experiment
+
+    	// show block instructions
+    	switch (blockType) {
+    		case "RG":
+	    		timeline.push(genInstruction(regularBlockInstruction));
+	    		break;
+    		case "OT":
+	    		timeline.push(genInstruction(omitBlockInstruction));
+	    		break;    		  		
+    	}
+
+    	// loop over each trial within the block
+    	for (var i = 0; i < trialArray.length; i++) {
+
+    		var trialObject = trialArray[i]; // the trial object
+    		var trialNum = i+1;
+    		var trialID = subjectID +"_" + blockID + "_" + trialNum;
+
+    		// show task cue first
+    		var task_cue = {
+				type: 'html-keyboard-response',
+				stimulus: `<div id= taskCue><p> ${trialObject.stim.toLowerCase()} </p><p> ${trialObject.rule_cue.toLowerCase()} </p></div>`,
+				choices: jsPsych.NO_KEYS,
+				trial_duration: intervalTaskCue
+				};
+			timeline.push(task_cue)
+
+			// show fixation of CTI
+	    	switch (blockType) {
+	    		case "RG":
+		    		timeline.push(genFixationCTI(trialObject.CTI, shuffleFixColors[0]));
+		    		break;
+	    		case "OT":
+		    		timeline.push(genFixationCTI(trialObject.CTI, shuffleFixColors[1]));
+		    		break;    		  		
+	    	}			
+			
+			if (trialObject.trial_type == "OT") { // show the trial termination if the trial is a omit trial
+				// show subject the omit signal so that they dont need to respond
+				var cue_omit = {
+					type: 'html-keyboard-response',
+					stimulus: '<div id= taskCue><p>XXXXX</p><p>XXX | XXXX</p></div>',
+					choices: jsPsych.NO_KEYS,
+					trial_duration: intervalTaskOmit
+					}
+				timeline.push(cue_omit)
+			} else { // if it is a regular trial
+				// show stimulus
+				var stim = {
+					 type: 'html-keyboard-response',
+					 stimulus: '<table><tr><td><img src="' + trialObject.image_up.path + '" class="imgStim"/></td></tr>'
+					  	            + '<tr><td><img src="' + trialObject.image_mid.path + '"class="imgStim"/></td></tr>'
+					  	            + '<tr><td><img src="' + trialObject.image_low.path + '"class="imgStim"/></td></tr></table>',
+					 choices: [leftKey, rightKey],
+					 stimulus_duration: intervalStim,
+					 trial_duration: ddlResponse,
+					 data: {
+					 	trial_part: "stimuli",
+					  	block_type: blockType,
+					  	block_id: blockID,
+					  	trial_num: trialNum,
+					  	trial_id: trialID,
+					  	trial_nature: trialObject.trial_type,
+					  	stim: trialObject.stim,
+					  	rule: trialObject.rule,
+					  	image_up_id: trialObject.image_up.id,
+					  	image_mid_id: trialObject.image_mid.id,
+					  	image_low_id: trialObject.image_low.id,
+					  	image_target: trialObject.image_target.id,
+					  	CTI: trialObject.CTI,
+					  	dim_tran: "NA",
+					  	task_tran: "NA",
+					  	image_target_tran: "NA",
+					  	answer: trialObject.answer,
+					  	correct_key: trialObject.correct_key
+					  },
+			         on_finish: function(data) {
+			            var acc = false;
+			            if (jsPsych.pluginAPI.compareKeys(data.response, data.correct_key)) {
+			                acc = true;
+			            }
+			            data.accuracy = acc;
+			         }			  
+				};
+				timeline.push(stim)
+
+				// show feedback
+		        var feedback = {
+		            type: 'html-keyboard-response',
+		            stimulus: function() {
+		            	var last_trial_rt = jsPsych.data.getLastTrialData().values()[0].rt;
+		                var last_trial_acc = jsPsych.data.getLastTrialData().values()[0].accuracy;
+		                var last_trial_type = jsPsych.data.getLastTrialData().values()[0].trial_nature;
+		                var feedback_text;
+		                if (last_trial_rt == null) { // missed trial
+		                    feedback_text = '<span style="font-size:25px;">too slow!</span>'
+		                } else if (last_trial_acc == true) { // correct regular trial
+		                	feedback_text = '<span style="font-size:25px;">well done!</span>'
+		                } else { // incorrect trial
+		                	feedback_text = '<span style="font-size:25px;">Incorrect!</span>'
+		                }
+		                return feedback_text;
+		            },
+		            choices: jsPsych.NO_KEYS,
+		            trial_duration: 750
+		        };			
+		        timeline.push(feedback)					
+			};
+
+			// inter-trial intervel
+			timeline.push(genFixationITI(jitterITIs[i]))
+    	}
+
+    	// show block-wise overall feedback
+    	if (blockID != fullBlockID[fullBlockID.length - 1]) { // the feedback shown at the end of each block EXCEPT the last block
+	    	var block_fb = {
+	    		type: 'html-keyboard-response',
+	    		stimulus: function() {
+	    			var feedback_string = '';
+	    			var reg_trial_accRate = jsPsych.data.get().filter({block_id: blockID, trial_nature:"RG", accuracy:true}).count() / jsPsych.data.get().filter({block_id: blockID, trial_nature:"RG"}).count();  // acc rate of regular trials
+	    			var reg_trial_accPC = Math.round(reg_trial_accRate * 100);   // the accuracy Percentage of regular trials
+
+	    			if(reg_trial_accPC < thre_accPC) {
+	    				feedback_string += '<p> In the previous block, you have achieved <b>'+ reg_trial_accPC +'%</b> of accuracy, which is, unfortunately, <b>lower</b> than other participants\'performance, please try harder to perform better.</p>';
+	    			};
+
+	    			feedback_string += '<p>Please press the space bar to start the next block.</p>';
+	    			return feedback_string;
+	    		},
+	    		choices: [' ']    		
+		    };	    	
+	    	timeline.push(block_fb)
+	    };
+    }
+
+   
+
+	function saveData(name, data){ // save data command for the regular way
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'write_data.php'); // 'write_data.php' is the path to the php file.
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({filename: name, filedata: data}));
+    }
+
+    function saveData2() { // save data command for the SQL way
+	  var xhr = new XMLHttpRequest();
+	  xhr.open('POST', 'write_data.php'); // change 'write_data.php' to point to php script.
+	  xhr.setRequestHeader('Content-Type', 'application/json');
+	  xhr.onload = function() {
+	    if(xhr.status == 200){
+	      var response = JSON.parse(xhr.responseText);
+	      console.log(response.success);
+	    }
+	  };
+	  xhr.send(jsPsych.data.get().json());
+	}
+
+	/////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////// EXPERIMENT START ///////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////
+	var timeline = [];
+
+	///// pre-loading images /////
+	var imgFiles = []
+
+	for(var i = 0; i < stimulusList.length; i++) {
+		var stimObject = stimulusList[i];
+		var stimPath = stimObject.path;
+		imgFiles.push(stimPath)
+	}
+	// console.log(imgFiles)
+
+	var preload = {
+		type: "preload",
+		images: imgFiles
+	}
+
+	timeline.push(preload)
+
+	///// consent /////
+
+	var consent = {
+		type: 'instructions',
+		pages: consentText,
+		show_clickable_nav: true,
+		button_label_next: "I agree",
+		allow_backward: false
+	};
+	timeline.push(consent)
+
+	///// start full screen mode //////
+	timeline.push({
+	  type: 'fullscreen',
+	  fullscreen_mode: true
+	});	
+
+	///// collect demographic information /////
+	// var prolificID = jsPsych.data.getURLVariable('PROLIFIC_PID');
+	var subjectID = jsPsych.randomization.randomID(8);
+	var sonaID = jsPsych.data.getURLVariable('sonaID');
+	
+	var demInfo_1 = {
+	  type: 'survey-multi-choice',
+	  questions: [
+	    {prompt: "What is your gender?", name: 'gender', options: ["male", "female", "others", "prefer not to say"], required:true},
+	    {prompt: "Are you right-handed or left-handed?", name: 'handedness', options: ['left-handed', 'right-handed'], required:true}
+	    ]
+	};
+	timeline.push(demInfo_1)
+
+	var age_trial = {
+	  type: 'survey-text',
+	  questions: [
+	    {prompt: "How old are you?", name:'age', placeholder: "between 18 and 100"},
+	  ],
+	};
+	timeline.push(age_trial)
+
+
+	var add_dem_info = {
+		type: 'call-function',
+		func: function(){
+			jsPsych.data.addProperties({
+				// prolific:prolificID,
+				subject: subjectID,
+				sona: sonaID,
+				gender: jsPsych.data.get().last(2).values()[0].response["gender"],
+				handedness: jsPsych.data.get().last(2).values()[0].response["handedness"],
+				age:jsPsych.data.get().last(1).values()[0].response["age"]
+			});
+		}
+	};
+	timeline.push(add_dem_info)
+
+   // detect visitor variables with the bowser js library (/js/bowser.js)
+	jsPsych.data.addProperties({ // add these variables to all rows of the datafile
+		browser_name: bowser.name, 
+		start_block:fullBlockSeq[0],
+		reg_color:shuffleFixColors[0],
+		resp_map_age:responseMappings[0],
+		resp_map_size:responseMappings[1],
+		resp_map_location:responseMappings[2]
+	});
+
+
+	//////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////// General Instruction /////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////
+
+	///// Instruction part 1/////
+    var generalInstructions_p1 = {
+        type: 'instructions',
+        pages: mainInstruction_part1,
+        show_clickable_nav: true,
+        post_trial_gap: 1000
+    };
+    timeline.push(generalInstructions_p1)
+
+
+    ///// example trial 1 /////
+	var example_task_cue = {
+	type: 'html-keyboard-response',
+	stimulus: `<div id= taskCue><p>animal</p><p>water|land</p></div>`,
+	choices: jsPsych.NO_KEYS,
+	trial_duration: intervalTaskCue
+	};	
+
+	var example1_fixation = genFixationCTI(2000);
+
+	var example1_stim = {
+		 type: 'html-keyboard-response',
+		 stimulus: '<table><tr><td><img src="images/vehicle_o_s_w.jpg" class="imgStim"/></td></tr>'
+		  	            + '<tr><td><img src="images/animal_o_b_w.jpg" class="imgStim"/></td></tr>'
+		  	            + '<tr><td><img src="images/place_y_s_l.jpg" class="imgStim"/></td></tr></table>',
+		 choices: [leftKey, rightKey],
+		 on_finish: function(data) {
+		            var acc = false;
+		            if (jsPsych.pluginAPI.compareKeys(data.response, leftKey)) {
+		                acc = true;
+		            }
+		            data.accuracy = acc;
+		 }
+	};
+
+	var example1_feedback = {
+        type: 'html-keyboard-response',
+        stimulus: function() {
+            var feedback_text = '<span style="font-size:20px;"><p>Sorry, you answer is wrong. As you saw, the cue showed that you need to judge whether the animal lives either in water or on land. the animal image out of three images was a whale, which lives in the water. Thus, you should have pressed the corresponding \"F\" key since the cue shows the water is on the left side.</p><p>Please press the spacebar to continue</p></span>'; 
+            var last_resp_acc = jsPsych.data.getLastTrialData().values()[0].accuracy;
+            if (last_resp_acc == true) {
+                feedback_text = '<span style="font-size:20px;"><p>Good job, you answer is correct!</p><p>Please press the spacebar to continue</p></span>';
+            }
+            return feedback_text;
+            },
+        choices: [' ']
+	};
+
+	timeline.push(example_task_cue, example1_fixation, example1_stim, example1_feedback)
+
+	///// Instruction part 2/////
+    var generalInstructions_p2 = {
+        type: 'instructions',
+        pages: mainInstruction_part2,
+        show_clickable_nav: true,
+        post_trial_gap: 1000
+    };
+    timeline.push(generalInstructions_p2)
+
+
+    ///// example trial 2 /////
+	var example2_pseudo_cue_omit = {
+	type: 'html-keyboard-response',
+	stimulus: `<div id= taskCue><p>XXXXX</p><p>XXX | XXXX</p></div>`,
+	choices: jsPsych.NO_KEYS,
+	trial_duration: intervalTaskCue
+	};
+
+	var example2_fixation = genFixationCTI(7000);
+
+	timeline.push(example_task_cue, example2_fixation, example2_pseudo_cue_omit)
+
+	///// Instruction part 3/////
+    var generalInstructions_p3 = {
+        type: 'instructions',
+        pages: mainInstruction_part3,
+        show_clickable_nav: true,
+        post_trial_gap: 1000
+    };
+    timeline.push(generalInstructions_p3)
+
+
+    /////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////// stimuli familiarity block /////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////
+    function genFamBlock() {
+	    var imgSeqFam = jsPsych.randomization.shuffle(stimulusList);
+	    var repeatTrial = false;
+
+	    for(var i = 0; i < imgSeqFam.length; i++) {
+	    	var imgObject = imgSeqFam[i];
+	    	var RuleSeqFam = jsPsych.randomization.shuffle(["age", "size", "location"]);
+
+	    	for(var ii = 0; ii < RuleSeqFam.length; ii++) {
+	    		
+	    		var rule = RuleSeqFam[ii];
+	    		var prompts = genPrompt(rule);
+	    		var answerFam =  genAnswer(rule, imgObject.id);
+	    		var correctKeyFam = genCorrectKey(answerFam, responseMappings);
+				
+				var fam_stim = {
+					 type: 'html-keyboard-response',
+					 stimulus: '<img src="' + imgObject.path + '" class="imgFam"/>',
+					 prompt: '<div id = "leftPrompt">' + prompts.leftPrompt + '</div>' + 
+					         '<div id = "rightPrompt">' + prompts.rightPrompt + '</div>',				 
+					 choices: [leftKey, rightKey],
+					 stimulus_duration: 5000,
+					 trial_duration:5000,
+					 data:{
+					 	answer: answerFam,
+					  	correct_key: correctKeyFam
+					 },				 
+					 on_finish: function(data) {
+					            var acc = false;
+					            if (jsPsych.pluginAPI.compareKeys(data.response, data.correct_key)) {
+					                acc = true;
+					            }
+					            data.accuracy = acc;
+					 }
+				};
+
+				// timeline.push(fam_stim)
+
+				////////////////// show feedback is the answer if wrong /////////////////
+				var feedback = {
+		        type: 'html-keyboard-response',
+		        stimulus: '<span style="font-size:20px;">Incorrect!</span>',
+		        choices: jsPsych.NO_KEYS,
+		        trial_duration: 1000
+		        };
+
+		        var show_feedback = {
+		        	timeline:[feedback],
+		        	conditional_function: function(){
+		        		var data_acc = jsPsych.data.getLastTrialData().values()[0].accuracy;
+		        		if (data_acc == true) {
+		        			repeatTrial = false;
+		        			return false
+		        		} else {
+		        			repeatTrial = true;
+		        			return true
+		        		}
+		        	}
+		        };
+
+		        var famTrial_loop = {
+		            timeline: [fam_stim, show_feedback],
+		            loop_function: function() {
+		                if (repeatTrial == true) {
+		                    return true;
+		                } else {
+		                    return false;
+		                }
+		            }
+		        }
+		        timeline.push(famTrial_loop);
+	    	}
+	    }   	
+    }
+
+    /////////// start the first block, summary, and the second block //////////////////
+
+    genFamBlock()
+
+    var FamBlockInstructions = {
+        type: 'instructions',
+        pages: famBlockInstruction,
+        show_clickable_nav: true,
+        post_trial_gap: 1000
+    };
+    timeline.push(FamBlockInstructions)
+
+    genFamBlock()
+
+	///////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////// Testing Blocks ///////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////
+
+	var regularBlockInstruction = ['<p><div class = "InstrBx">The next block is a <b>regular</b> block. In this block, there will be NO omit trials.</p>' +
+
+                               '<p>the response mapping you are going to use is:</p>' +
+                               '<table class = "lotteryTable"><tr><th class = "lotteryTableEntry">left key </th><th class = "lotteryTableEntry"> right key</th></tr>'+
+                                      '<tr><td class = "lotteryTableEntry">'+ leftPrompt[0] +'</td><td class = "lotteryTableEntry">'+ rightPrompt[0] +'</td></tr>'+
+                                      '<tr><td class = "lotteryTableEntry">'+ leftPrompt[1] +'</td><td class = "lotteryTableEntry">'+ rightPrompt[1] +'</td></tr>'+
+                                      '<tr><td class = "lotteryTableEntry">'+ leftPrompt[2] +'</td><td class = "lotteryTableEntry">'+ rightPrompt[2] +'</td></tr></table>' +
+
+                               '<p>Just to be clear, the response mapping will NOT change throughout the experiment. You can perform the task efficiently by placing your left and right index\
+                               fingers on the letters \"F\" and \"J\".</p>' +
+                               '<p><img src="instruction_keyboard.jpg" style = "width:500px;height:200px;"></img></p></div>' +
+                               '<p>Please press NEXT to start.</p></div>' 
+                               ];
+    
+    var omitBlockInstruction = ['<p><div class = "InstrBx">The next block is a <b>mixed</b> block. In this block, there are some omit trials, during which you don\'t need to respond to the task at all.</p>' +
+
+                                 '<p>The longer you have to wait following the first cue, the more likely it will be a omit trial!</p>' +
+
+                               '<p>the response mapping you are going to use is:</p>' +
+                               '<table class = "lotteryTable"><tr><th class = "lotteryTableEntry">left key </th><th class = "lotteryTableEntry"> right key</th></tr>'+
+                                      '<tr><td class = "lotteryTableEntry">'+ leftPrompt[0] +'</td><td class = "lotteryTableEntry">'+ rightPrompt[0] +'</td></tr>'+
+                                      '<tr><td class = "lotteryTableEntry">'+ leftPrompt[1] +'</td><td class = "lotteryTableEntry">'+ rightPrompt[1] +'</td></tr>'+
+                                      '<tr><td class = "lotteryTableEntry">'+ leftPrompt[2] +'</td><td class = "lotteryTableEntry">'+ rightPrompt[2] +'</td></tr></table>' +
+
+                                 '<p>Just to be clear, the response mapping will NOT change throughout the experiment. You can perform the task efficiently by placing your left and right\
+                                  index fingers on the letters \"F\" and \"J\".</p>' +
+                                 '<p><img src="instruction_keyboard.jpg" style = "width:500px;height:200px;"></img></p></div>' + 
+                                 '<p>Please press NEXT to start.</p></div>'
+                                 ];                          
+
+	///// the 6 test blocks /////
+
+	for(var i = 0; i < fullBlockID.length; i++) {
+		
+		var blockType = fullBlockSeq[i];
+		var blockID = fullBlockID[i];
+
+		var CTIs_OT = jsPsych.randomization.sampleWithoutReplacement(CTIs_long, numOT);// pick 5 different CTIs as the tranform trials
+
+		jitterITIs = jsPsych.randomization.shuffle(ITIs);
+		var trialArray = genTrialArray(blockType, nTrialsBlock, CTIs_OT);
+		console.log("the " + blockID + " block consist of the following trials:", trialArray);
+
+		genBlock(blockType, blockID, trialArray);
+	}
+
+
+	////////////// save data for all the data //////////
+	
+    /// save on the local server as the traditional way ///
+
+	var storeData = {
+        type: "call-function", 
+        func: function() {    
+            saveData(subjectID + "_" + 'beliefstate', jsPsych.data.get().filterCustom(function(element){return element.trial_part == "stimuli"}).csv());
+        }}
+
+    timeline.push(storeData)        
+
+/*
+	/// save on the lab server using mySQL database ///
+	var storeData = {
+	  type: 'call-function',
+	  func: function(){
+	  data = jsPsych.data.get().filter({trial_part: "stimuli"});
+	  serverComm.save_data(data.values());
+	  }
+	}
+*/
+
+	var finish_proof = {
+        type: 'instructions',
+        pages: function(){
+        	var html = ['<p>Congratulations! You now completed all the trials. </p>' + 
+        	            '<p>Your sona ID is:<b>' + sonaID +'</b>.</p>' +
+        	            '<p>Your subject number is:<b>' + subjectID +'</b>.</p>' +
+        	            '<p><b>Please keep this subject number with you</b>. We can locate and check your data better if you can inform us your subject number in case you need to contact the experimenter in the future. Thus, I would recommand taking a screenshot of this page. it also can be used to prove that you have finished the experiment in case the data storage fails.</p>'];
+	               return html},
+        show_clickable_nav: true,
+        post_trial_gap: 1000
+    };
+    timeline.push(finish_proof)
+
+	////////////////// The End of the experiment ////////////////////
+    
+    // leave 30s to save the data 
+	var countdown_trial = {
+	  type: 'html-button-response',
+	  stimulus: '<p>The data is being saved now, please DO NOT close the browser.</p>' + 
+	            '<p>press CONTINUE after the countdown is finished</p>'+
+	            '<p><span id="clock">00:30</span></p>',
+	  choices: ['Continue'],
+	  on_load: function(){
+	    var wait_time = 0.5 * 60 * 1000; // in milliseconds
+	    var start_time = performance.now();
+	    document.querySelector('button').disabled = true;
+	    var interval = setInterval(function(){
+	      var time_left = wait_time - (performance.now() - start_time);
+	      var minutes = Math.floor(time_left / 1000 / 60);
+	      var seconds = Math.floor((time_left - minutes*1000*60)/1000);
+	      var seconds_str = seconds.toString().padStart(2,'0');
+	      document.querySelector('#clock').innerHTML = minutes + ':' + seconds_str
+	      if(time_left <= 0){
+	        document.querySelector('#clock').innerHTML = "0:00";
+	        document.querySelector('button').disabled = false;
+	        clearInterval(interval);
+	      }
+	    }, 250)
+	  }
+	}
+
+	timeline.push(countdown_trial)
+
+	// exit fullscreen mode
+	timeline.push({
+	  type: 'fullscreen',
+	  fullscreen_mode: false
+	});
+
+    var endMessage = {
+        type: 'instructions',
+        pages: endMessage,
+        show_clickable_nav: true,
+        post_trial_gap: 1000
+    };
+    timeline.push(endMessage)
+
+	jsPsych.init({
+		timeline: timeline,
+		on_finish: function() {
+			setTimeout("location.href ='https://www.google.com/';",1000);
+		}
+	})
+
+
+</script>
